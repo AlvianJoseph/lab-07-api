@@ -60,3 +60,24 @@ function Weather(day) {
     this.forecast = day.summary;
     this.time = new Date(day.time * 1000).toDateString().slice(0, 15);
 }
+
+app.get('/events', getEvents);
+
+function getEvents(request, response) {
+    const url = `https://www.eventbrite.com/oauth/authorize?response_type=token&client_id=${EVENTBRITE_API_KEY}&redirect_uri=YOUR_URL`;
+
+    superagent.get(url)
+    .then(apiResponse => {
+
+    })
+
+    .catch(error => handleError(error, response));
+
+}
+
+function Event(eventData) {
+    this.link = eventData.ticket_classes.resource_url;
+    this.name = eventData.ticket_classes.name;
+    this.event_date = eventData.something;
+    this.summary = eventData.something;
+}
