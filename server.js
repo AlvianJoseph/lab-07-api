@@ -8,17 +8,43 @@ const superagent = require('superagent');
 
 const PORT = process.env.PORT || 3000;
 const app = express();
+
 app.use(cors());
 
 function handleError(err, res) {
     console.error(err);
     if (res) res.status(500).send('Sorry, something went wrong');
-  }
+}
 
 app.listen(PORT, () => console.log(`App is listening on ${PORT}`));
 
+//paths
 app.get('/location', searchToLatLong);
+app.get('/weather', getWeather);
+app.get('/events', getEvents);
 
+//models
+function Location(locationQuery, locationInfo) {
+    this.search_query = locationQuery;
+    this.formatted_query = locationInfo.results[0].formatted_address;
+    this.latitude = locationInfo.results[0].geometry.location.lat;
+    this.longitude = locationInfo.results[0].geometry.location.lng;
+}
+
+function Weather(day) {
+    this.forecast = day.summary;
+    this.time = new Date(day.time * 1000).toDateString().slice(0, 15);
+}
+
+function Event(event) {
+    this.link = event.url;
+    this.name = event.name.text;
+    this.event_date = new Date(event.start.local).toString().slice(0, 15);
+    this.summary = event.summary;
+  }
+
+
+//get info
 function searchToLatLong(request, response) {
     const locationQuery = request.query.data;
     const url = `https://maps.googleapis.com/maps/api/geocode/json?address=${locationQuery}&key=${process.env.GEOCODE_API_KEY}`;
@@ -30,16 +56,6 @@ function searchToLatLong(request, response) {
         })
         .catch(error => handleError(error, response));
 }
-
-function Location(locationQuery, locationInfo) {
-    console.log(locationInfo);
-    this.search_query = locationQuery;
-    this.formatted_query = locationInfo.results[0].formatted_address;
-    this.latitude = locationInfo.results[0].geometry.location.lat;
-    this.longitude = locationInfo.results[0].geometry.location.lng;
-}
-
-app.get('/weather', getWeather);
 
 function getWeather(request, response) {
     const url = `https://api.darksky.net/forecast/${process.env.WEATHER_API_KEY}/${request.query.data.latitude},${request.query.data.latitude}`;
@@ -53,31 +69,20 @@ function getWeather(request, response) {
             console.error(error);
             response.send("something went wrong");
         });
-
 }
-
-function Weather(day) {
-    this.forecast = day.summary;
-    this.time = new Date(day.time * 1000).toDateString().slice(0, 15);
-}
-
-app.get('/events', getEvents);
 
 function getEvents(request, response) {
-    const url = `https://www.eventbrite.com/oauth/authorize?response_type=token&client_id=${EVENTBRITE_API_KEY}&redirect_uri=YOUR_URL`;
-
+    const url = `https://www.eventbriteapi.com/v3/events/search?token=${process.env.EVENTBRITE_API_KEY}&location.address=${request.query.data.formatted_query}`;
+  
     superagent.get(url)
-    .then(apiResponse => {
+      .then(result => {
+        const events = result.body.events.map(eventData => {
+          const event = new Event(eventData);
+          return event;
+        });
+  
+        response.send(events);
+      })
+      .catch(error => handleError(error, response));
+  }
 
-    })
-
-    .catch(error => handleError(error, response));
-
-}
-
-function Event(eventData) {
-    this.link = eventData.ticket_classes.resource_url;
-    this.name = eventData.ticket_classes.name;
-    this.event_date = eventData.something;
-    this.summary = eventData.something;
-}
